@@ -1,0 +1,385 @@
+EggAche Graphical Library使用说明
+1.	设计初衷：Egg库功能太少，图层调整麻烦，没有缓冲作图； EasyX/Ege库有点像Win GDI的直接封装，没有Egg的动画模块； 而三个库的交互模型不能处理多个消息并发； Qt/Open GL/DirectX之类的门槛太高。于是EggAche库出现了，不需要图形界面编程基础～一起加油吧
+Features：完美引入Egg和Paper两种对象，利用回调函数式的事件驱动模型交互，可以用来控制动画的简单方便的计时器，根据用户体验不断完善功能～（站在巨人的肩膀上）
+2.	文件说明：
+a)	EggAche.lib，EggAched.lib为MS-VC编译器的格式（分别为32bit Release， 32bit Debug）
+b)	libEggAche.a，libEggAche86.a为TDM-GCC编译器的格式（分别为64bit Release，32bit Release）
+c)	EggAche.h为通用头文件（附带参数说明）
+3.	配置环境：
+a)	VS版本：
+i.	支持VS2008及以上版本（VC6.0及VS2005没有测试），仅导出32位版本
+ii.	新建项目建议使用Win32控制台的空项目
+ 
+iii.	将EggAche.lib及EggAched.lib放到.vcproj同目录下，将EggAche.h放到使用库的.c/.cpp的目录下
+ 
+iv.	将EggAche.h包含到项目中
+ 
+v.	在使用库的.c/.cpp中开头加入一下代码
+#include "EggAche.h"  //p.s. C++ 要使用extern “C”
+#ifdef _DEBUG
+#pragma comment (lib, "EggAched.lib")  //Debug版本
+#else
+#pragma comment (lib, "EggAche.lib")  //Release版本
+#endif
+就是这么简单～～
+b)	Dev-C++版本（仅演示64位，32位同理）：
+i.	目前由这个版本（Dev-Cpp 5.7.1 TDM-GCC x64 4.8.1）导出（编译器：TDM-GCC 4.8.1）
+ 
+ii.	将libEggAche.a放到自己的某个目录下，EggAche.h放到工程目录下并引用
+iii.	找到/项目Project/中的/项目属性Project Option/（那个黄色的小盾牌也可以），先将/编译器Compiler/设置为（其实是默认的设置，一般不用动它）
+ 
+iv.	/参数Parameters/选项卡中找到/链接器Linker/加入以下三行
+-leggache
+-lgdi32
+-lmsimg32
+ 
+v.	/目录Directories/选项卡中找到/库目录Library Directories/添加libEggAche.a所在的目录（文件夹）注意，/添加Add/后再/确定OK/～
+  
+vi.	在使用库的.c/.cpp中开头加入一下代码
+#include "EggAche.h"  //p.s. C++ 要使用extern “C”
+c)	CFree版本：由于其使用的MinGW版本过于老旧，不支持目前导出的.a。目前正在移植…
+4.	功能说明：
+a)	事件驱动：
+i.	在头文件中设置了7种事件函数指针类型： 
+ONCREATE	窗口创建
+ONCLOSE	窗口关闭
+ONPAINT		窗口绘制
+ONRESIZE	窗口尺寸确定时
+ONCLICK		点击鼠标
+ONPRESS		敲击键盘
+ONTIMER	计时器函数
+ii.	其中函数指针指向的函数结构必须满足：ONRESIZE有两个参数（用于接收窗口宽度，高度），ONCLICK两个参数（用于接收鼠标点击处x，y坐标），ONPRESS一个参数（用于接收输入键的Ascii，支持大小写），其他四种均无参数；其返回值类型为void。
+iii.	使用：除计时器函数，其他六种事件分别由全局变量g_fnOnCreate，g_fnOnClose，g_fnOnPaint，g_fnOnResize，g_fnOnClick，g_fnOnPress设置，即在main函数中将这几个全局变量赋值为自己的函数名。当事件发生时，会调用这个自己的函数；如果没有设置全局变量（没有使用到这个事件），当事件发生时，将不会接收到消息。（类似于Visual Basic机制）
+iv.	计时器函数在c）中说明。
+b)	窗口使用：
+i.	窗口使用左上角为（0，0），向右为x正方向，向下为y正方向，以像素为单位的坐标系统
+ii.	HiWindow作为启动库功能函数。传入参数：窗口标题字符串，窗口宽度，窗口高度。其中，窗口宽度及高度包括边框与标题栏。作用：产生一个新的窗口。仅当调用该函数之后，才能使用Egg/Paper及计时器。
+iii.	MsgBox为简单对话框函数，产生对话框中带有一个确定按钮。传入参数：对话框文字字符串，对话框标题字符串。注意当对话框关闭后，函数才会返回。
+c)	计时器：
+i.	NewTimer产生新的计时器。传入参数：计时器ID，时间间隔（毫秒），回调函数。每个时间间隔调用一次回调函数。回调函数为ONTIMER类型。
+ii.	FreeTimer关闭计时器。传入参数：计时器ID。关闭后的计时器不会再调用回调函数。
+d)	画纸（Paper）/鸡蛋（Egg）：
+i.	理念：绘图过程中的两个核心元素。鸡蛋相当于印章，可以做好印章模板后盖在画纸上（EggPaint）； 当制作动画时不需要重新刻（EggNew/EggFromBmp/EggFromBmpEx）一个章，只需要改变它印在画纸上的位置（EggMove/EggPlace）。为什么要用画纸，而不是直接在屏幕上绘画呢？因为如果动画中一边计算一边直接在屏幕上绘图，可能由于电脑性能问题引起屏幕闪烁，这时候就需要引入双缓冲技术，即先在画纸上绘图，然后打印到窗口上（PrintPaper）。
+于是，我们的鸡蛋相当于可以重用的绘图模板，画纸相当于缓冲区，方便的完成了动画的编程～
+ii.	NewPaper产生新的画纸，DuplicatePaper将一个画好的画纸上内容复制到另一个画纸上，PrintPaper将画纸打印到窗口上，FreePaper销毁不要的画纸（如果不消毁会造成内存泄漏）。
+iii.	EggNew设置鸡蛋起始位置及大小并产生新的鸡蛋，EggFromBmp由图片文件产生一个鸡蛋，EggFromBmpEx为扩展版本，EggCopy由一个已经画好的鸡蛋复制产出一个新的鸡蛋，EggPaint将鸡蛋画到画纸上，EggFree销毁不要的鸡蛋，EggMove移动鸡蛋，EggPlace放置鸡蛋到一个确定的位置，EggGetX/EggGetY返回当前鸡蛋的位置。
+e)	画图函数：
+i.	画图函数中分为两个版本：E*版本针对Egg绘图，P*版本针对Paper绘图。
+ii.	*SetPen设置画笔宽度及颜色，*SetBrush设置画刷颜色；画笔用于画直线和基本图形边框，画刷仅用于填充基本图形。fNULL参数设置画笔/画刷是否为透明，若为1，则忽略（宽度）/颜色；为0，则使用（宽度）/颜色。
+iii.	GetColor返回以上两个函数color参数所需要的值。
+iv.	DrawLine画从(xBeg, yBeg)到(xEnd, yEnd)的一条直线。
+v.	DrawRect画一个以(xBeg, yBeg)为左上角，(xEnd, yEnd)为右下角的矩形，并用画刷填充颜色。
+vi.	DrawElps在以(xBeg, yBeg)为左上角，(xEnd, yEnd)为右下角的矩形框内，画一个内切椭圆，并用画刷填充颜色。
+vii.	DrawRdRt在以(xBeg, yBeg)为左上角，(xEnd, yEnd)为右下角的矩形框内，画一个内切圆角矩形，以wElps/hElps为圆角椭圆长轴长/短轴长，并用画刷填充颜色。
+viii.	DrawTxt以(xBeg, yBeg)为左上角，绘制字符串。
+ix.	PdrawBitmap以画纸的(xBeg, yBeg)为左上角，贴图长/宽为width/height。
+f)	一些建议：
+i.	建议先学习Demo，看看怎么使用事件驱动模型（类似Visual Basic）。
+ii.	对于一些参数和返回值的详细用法，见EggAche.h。
+iii.	建议main函数中先将事件函数全局变量g_fnOnCreate，g_fnOnClose，g_fnOnPaint，g_fnOnResize，g_fnOnClick，g_fnOnPress初始化，然后再调用HiWindow启动窗口。
+iv.	使用到EggAche库的所有初始化代码建议放到g_fnOnCreate对应的函数中。
+v.	释放有关EggAche库的所有资源代码建议放到g_fnOnClose对应的函数中。
+vi.	初始化时不一定要设置Egg的x，y，因为你在g_fnOnCreate对应的函数中并没有得到窗口有效区域的实际大小，所以建议在g_fnOnResize对应的函数中调用EggPlace移动那些位置与屏幕尺寸有关的Egg。
+vii.	对于默认的绘图过程，建议放到g_fnOnPaint对应的函数中；在其他地方使用到默认绘图过程时，直接调用该函数。
+viii.	如果想要把你的程序移植到其他分辨率的计算机上，建议：HiWindow使用0，0作为参数，使用默认窗口宽度/高度；然后在g_fnOnResize对应的函数中，获得窗口有效区域的实际大小，并根据这个大小计算放缩你的绘图；如果你的素材分辨率不合适，可以使用EggFromBmpEx放缩地贴入素材。
+5.	交流反馈：
+359710062@qq.com 欢迎大家指点^_^交流
+6.	感谢：
+To our parents, who guided and inspired us to follow our dreams.
+感谢王泽鹏 张博康 徐翥同学的建议和支持
+BOT Man
+2015.5.24
+
+
+EggAche.h
+
+//
+// User Interface of EggAche Graphical Library
+// By LJN-BOT Man, 2015
+//
+
+#ifndef EGGACHE_GL
+#define EGGACHE_GL
+
+//=========================================================================
+// Ignore this Section...
+//=========================================================================
+
+typedef void (* ONCREATE) ();
+typedef void (* ONCLOSE)();
+typedef void (* ONPAINT)();
+typedef void (* ONRESIZE)(int, int);
+typedef void (* ONCLICK)(int, int);
+typedef void (* ONPRESS)(char);
+typedef void (* ONTIMER)();
+
+//=========================================================================
+// Event Driver
+//=========================================================================
+
+//
+// Hint: In your code, just let g_fnOn* = (your function's name).
+//		 Your function will be called when the Event happen.
+//
+
+// Create Window Event
+extern ONCREATE g_fnOnCreate;
+// Called when the Window is being Created
+// Your function's format:
+// void *** ();
+
+// Close Window Event
+extern ONCLOSE g_fnOnClose;
+// Called when the Window is about to Closed
+// Your function's format:
+// void *** ();
+
+// Paint Window Event
+extern ONPAINT g_fnOnPaint;
+// Called when the Window needs to be refresh
+// Your function's format:
+// void *** ();
+
+// Resize Window Event
+extern ONRESIZE g_fnOnResize;
+// Called when the Window is being Resized or Created
+// Your function's format:
+// void *** (int width, int height);
+// width, height = the new size of the Client Rect
+//                 (Window size - Border size)
+// p.s. it's not the same as the params in NewWindow ()
+
+// Mouse Click Event
+extern ONCLICK g_fnOnClick;
+// Called when the mouse clicks
+// Your function's format:
+// void *** (int x, int y);
+// x, y = the position of the click point
+
+// Key Press Event
+extern ONPRESS g_fnOnPress;
+// Called when you input a character
+// Your function's format:
+// void *** (char ch);
+// ch = the Ascii number of the key
+
+//=========================================================================
+// Create Window and Use Message Loop
+//=========================================================================
+
+// Starter Function
+int HiWindow (
+	const char *szCap,		// the Caption String
+	int width,				// Width of the new window (0 = Use Default)
+	int height);				// Height of the new window (0 = Use Default)
+// Return value:
+// 1 = Successfully Created, 0 = Failed
+// Hint:
+// width, height include the size of borders and caption...
+// Strongly recommend you use 0 to have default size, and get size in g_fnOnResize
+
+//=========================================================================
+// Simple Message Box
+//=========================================================================
+
+// Message Box
+void MsgBox (
+	const char *szHint,		// the Text String
+	const char *szCap);		// the Caption String
+
+//=========================================================================
+// Amazing Timer Functions~~~
+//=========================================================================
+
+// Create Timer
+int NewTimer (
+	int id,					// the ID of your new Timer (0 ~ 99)
+	int time,				// the Tick of your new Timer (Millisecond)
+	ONTIMER fnTick);			// the *** of "void *** ()" (To receive the Notification)
+// Return value:
+// 1 = Successfully Created, 0 = Failed
+
+// Kill Timer
+int FreeTimer (
+	int id);					// the ID of Timer to be Killed (0 ~ 99)
+// Return value:
+// 1 = Successfully Killed, 0 = Failed
+
+//=========================================================================
+// Paper
+//=========================================================================
+
+typedef struct _Paper *Paper;
+
+// New Paper
+Paper NewPaper ();
+// Return value:
+// Paper: Successfully Created, NULL: Failed
+
+// Copy Paper
+int DuplicatePaper (
+	Paper pDst,				// To-Paper
+	Paper pSrc);				// From-Paper
+// Return value:
+// 1 = Successfully Copyed, 0 = Failed
+
+// Print a Paper to current window
+int PrintPaper (
+	Paper paper);			// Source Paper
+// Return value:
+// 1 = Successfully Painted, 0 = Failed
+
+// Delete a Paper when it's not used
+int FreePaper (
+	Paper paper);			// Paper to Free
+// Return value:
+// 1 = Successfully Freed, 0 = Not Valid Paper
+
+//=========================================================================
+// Egg for Animation
+//=========================================================================
+
+typedef struct _Egg *Egg;
+
+// New Egg
+Egg EggNew (
+	int x,					// Initial x Position
+	int y,					// Initial y Position
+	int width,				// Width of the new Egg
+	int height);				// Height of the new Egg
+// Return value:
+// Egg: Successfully Created, NULL: Failed
+
+Egg EggFromBmp (
+	int x,					// Initial x Position
+	int y,					// Initial y Position
+	int width,				// Width of the new Egg (0 = Use Bitmap Size)
+	int height,				// Height of the new Egg (0 = Use Bitmap Size)
+	const char *szPath);		// "path/name.xxx" of the source file
+// Return value:
+// Egg: Successfully Created, NULL: Failed
+
+Egg EggFromBmpEx (
+	int x,					// Initial x Position
+	int y,					// Initial y Position
+	int width,				// Width of the new Egg (0 = Use Bitmap Size)
+	int height,				// Height of the new Egg (0 = Use Bitmap Size)
+	int xSrc,				// x in the source Bitmap
+	int ySrc,				// y in the source Bitmap
+	int wSrc,				// Width in the source Bitmap (0 = Use Bitmap Size)
+	int hSrc,				// Height in the source Bitmap (0 = Use Bitmap Size)
+	const char *szPath,		// "path/name.xxx" of the source file
+	int colorMask);			// color of mask (-1 = Not Used)
+// Return value:
+// Egg: Successfully Created, NULL: Failed
+// Hint:
+// The color of colorMask will be set to Transparent
+// If not used ( = -1), the Egg is Opaque
+// This function can stretch the Region in Bitmap
+//    (xSrc, ySrc)-------------(xSrc + wSrc, ySrc)
+//         |                            |
+//         |                            |
+//         |                            |
+//         |                            |
+// (xSrc, ySrc + hSrc)-------(xSrc + wSrc, ySrc + hSrc)
+// into the new Egg
+
+// Copy Egg
+Egg EggCopy (
+	Egg egg,					// Source Egg
+	int x,					// Initial x Position
+	int y);					// Initial y Position
+// Return value:
+// Egg: Successfully Copied, NULL: Failed
+
+// Paint an Egg to a Paper
+int EggPaint (
+	Paper paper,				// Dest Papar
+	Egg egg);				// Source Egg
+// Return value:
+// 1 = Successfully Freed, 0 = Not Valid Paper
+
+// Delete an Egg when it's not used
+int EggFree (
+	Egg egg);				// Egg to Free
+// Return value:
+// 1 = Successfully Freed, 0 = Not Valid Paper
+
+// Move Egg or Get its Position
+void EggMove (Egg egg, int x, int y);  // Move (x, y)
+void EggPlace (Egg egg, int x, int y);  // Move To (x, y)
+
+int EggGetX (Egg egg);
+int EggGetY (Egg egg);
+
+//=========================================================================
+// Painting Functions
+//=========================================================================
+
+// Hint:
+// P* functions = Setting/Painting on a Paper
+// E* functions = Setting/Painting in an Egg
+//
+// We use pixel coordinate system like
+// (0, 0)------------------>x
+//   |
+//   |
+//   |
+//   |
+//   y
+// Return value:
+// 1 = Successfully Drawed, 0 = Failed
+
+// Customize your own Pen and Brush
+int PSetPen (Paper paper, int width, int color, int fNULL);
+int ESetPen (Egg egg, int width, int color, int fNULL);
+int PSetBrush (Paper paper, int color, int fNULL);
+int ESetBrush (Egg egg, int color, int fNULL);
+// fNULL = is this Pen/Brush Transparent
+int GetColor (int r, int g, int b);  // for color parameters above
+
+// Draw Line
+int PDrawLine (Paper paper, int xBeg, int yBeg, int xEnd, int yEnd);
+int EDrawLine (Egg egg, int xBeg, int yBeg, int xEnd, int yEnd);
+// Hint: Draw a line from (xBeg, yBeg) to (xEnd, yEnd)
+
+// Draw Rectangle
+int PDrawRect (Paper paper, int xBeg, int yBeg, int xEnd, int yEnd);
+int EDrawRect (Egg egg, int xBeg, int yBeg, int xEnd, int yEnd);
+// Hint: Draw a Rectangle like
+//   (xBeg, yBeg)-----------------(xEnd, yBeg)
+//        |                            |
+//        |                            |
+//        |                            |
+//        |                            |
+//   (xBeg, yEnd)-----------------(xEnd, yEnd)
+
+// Draw Ellipse
+int PDrawElps (Paper paper, int xBeg, int yBeg, int xEnd, int yEnd);
+int EDrawElps (Egg egg, int xBeg, int yBeg, int xEnd, int yEnd);
+// Hint: Draw the Ellipse in such a bounding rect box
+
+// Draw round conner Rectangle
+int PDrawRdRt (Paper paper, int xBeg, int yBeg,
+			   int xEnd, int yEnd, int wElps, int hElps);
+int EDrawRdRt (Egg egg, int xBeg, int yBeg,
+			   int xEnd, int yEnd, int wElps, int hElps);
+// Hint: Draw a round conner Rectangle
+//       wElps, hElps = the width/height of the conner Ellipse
+
+// Draw Text
+int PDrawTxt (Paper paper, int xBeg, int yBeg, const char *szText);
+int EDrawTxt (Egg egg, int xBeg, int yBeg, const char *szText);
+// Hint: Draw the szText with the upper left point (xBeg, yBeg)
+
+// Draw Bitmap
+int PDrawBitmap (
+	Paper paper,				// Dest Papar
+	int xBeg,				// Left position on the Paper
+	int yBeg,				// Top position on the Paper
+	int width,				// Width of the Bitmap (0 = Full size)
+	int height,				// Height of the Bitmap (0 = Full size)
+	const char *szPath);		// "path/name.xxx" of the source file
+
+#endif  //EGGACHE_GL
+
